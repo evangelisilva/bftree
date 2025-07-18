@@ -2,23 +2,21 @@
 
 use std::rc::Rc;
 use std::cell::RefCell;
-use crate::mini_page::MiniPage;
 
 use crate::mini_page::MiniPage;
-use crate::page_id_allocator::PageIdAllocator;
 
 /// The MappingTable maps logical page IDs to:
 /// - an optional in-memory MiniPage (cached hot records)
 /// - the disk offset of the base leaf page (always exists)
 pub struct MappingTable {
-    table: Vec<Option<(Option<Rc<RefCell<MiniPage>, u64)>>, // Vec acts as indirection array
+    table: Vec<Option<(Option<Rc<RefCell<MiniPage>>>, u64)>>,// Vec acts as indirection array
 }
 
 impl MappingTable {
     /// Create a new MappingTable with an initial capacity for page IDs.
-    pub fn new(initial_capacity: usize) -> Self {
+    pub fn new() -> Self {
         Self {
-            table: vec![None; initial_capacity],
+            table: Vec::new(),
         }
     }
 
@@ -55,4 +53,37 @@ impl MappingTable {
         }
     }
 
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::rc::Rc;
+    use std::cell::RefCell;
+    use crate::mini_page::MiniPage;
+
+    #[test]
+    fn test_mapping_table_dynamic_growth() {
+        let mut table = MappingTable::new();
+
+        let dummy_page = Rc::new(RefCell::new(MiniPage::new(42)));
+        let page_id = 5;
+        let disk_offset = 1000;
+
+        // Insert beyond initial zero-length
+        table.insert(page_id, Some(dummy_page.clone()), disk_offset);
+
+        // Should grow and store the entry
+        assert!(table.contains(page_id));
+
+        let (mini_opt, offset) = table.get(page_id).expect("Missing entry");
+        assert_eq!(offset, disk_offset);
+        assert!(mini_opt.is_some());
+
+        // Update mini-page to None and verify
+        table.clear_mini_page(page_id);
+        let (mini_opt, offset) = table.get(page_id).expect("Missing entry after clear");
+        assert!(mini_opt.is_none());
+        assert_eq!(offset, disk_offset);
+    }
 }

@@ -36,10 +36,10 @@ impl MiniPage {
     pub fn next_size(&self) -> u16 {
         let current = self.page.node_meta.node_size;
         let next = current.saturating_mul(2);
-        if next <= MINI_PAGE_MAX_SIZE {
-            next as u16
+        if (next as usize) <= MINI_PAGE_MAX_SIZE {
+            next
         } else {
-            0 // cannot grow further
+            0
         }
     }
 
@@ -139,8 +139,8 @@ impl MiniPage {
     /// This is triggered when the mini-page is too large or cold.
     pub fn merge(&mut self) {
         // Step 1: Locate corresponding leaf page;
-        let leaf_offset = self.node_meta.leaf;
-        let mut leaf_page = LeafPage::load_from_disk(leaf_disk_offset);
+        let leaf_offset = self.page.node_meta.leaf;
+        let leaf_page = LeafPage::load_from_disk(leaf_offset);
     }
 
 }

@@ -190,13 +190,17 @@ mod tests {
 
     #[test]
     fn test_leaf_page_round_trip() {
+        const TEST: &str = "[test_leaf_page_round_trip]";
+
         let path = "storage.bftree";
-        let offset: u64 = 0;
+        let offset: u64 = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
 
-        // Clean the test file
+        println!("{TEST} Initial offset: {offset}");
+
+        std::fs::remove_file(path).ok();
         File::create(path).expect("Failed to clear test file");
+        println!("{TEST} Cleared existing file and created new one: {path}");
 
-        // Create and populate a LeafPage
         let node_meta = NodeMeta::new(
             LEAF_PAGE_SIZE as u16,
             PageType::LeafPage,
@@ -204,6 +208,7 @@ mod tests {
             0,
             0,
         );
+
         let mut original = LeafPage {
             page: Page::new(node_meta),
         };
@@ -214,29 +219,35 @@ mod tests {
             (b"banana".to_vec(), b"fruit".to_vec()),
         ];
 
+        println!("{TEST} Inserting key-value pairs into original page:");
         for (k, v) in &kvs {
-            assert!(original.insert(k, v, None), "Insert failed");
+            println!(
+                "{TEST}  - inserting key: {:?}, value: {:?}",
+                String::from_utf8_lossy(k),
+                String::from_utf8_lossy(v)
+            );
+            assert!(original.insert(k, v, None), "Insert failed for key {:?}", k);
         }
 
         original.flush_to_disk(offset);
+        println!("{TEST} Page flushed to disk at offset {offset}");
 
-        // Load the page back
         let mut loaded = LeafPage::load_from_disk(offset);
+        println!("{TEST} Page loaded from disk for validation");
 
-        // Ensure metadata matches
         assert_eq!(
             loaded.page.kv_metas.len(),
             original.page.kv_metas.len(),
-            "KVMeta count mismatch"
+            "{TEST} KVMeta count mismatch"
         );
+        println!("{TEST} KVMeta count matches");
 
-        // Check each key-value pair
         for (k, v) in &kvs {
             let result = loaded.binary_search(k);
             match result {
                 Some(val) => {
                     println!(
-                        "Key: {:?}, Expected: {:?}, Found: {:?}",
+                        "{TEST} Key: {:?}, Expected: {:?}, Found: {:?}",
                         String::from_utf8_lossy(k),
                         String::from_utf8_lossy(v),
                         String::from_utf8_lossy(&val)
@@ -244,11 +255,13 @@ mod tests {
                     assert_eq!(val, *v, "Value mismatch for key {:?}", k);
                 }
                 None => {
-                    println!("Key not found: {:?}", String::from_utf8_lossy(k));
-                    panic!("Test failed: key not found");
+                    println!("{TEST} Key not found: {:?}", String::from_utf8_lossy(k));
+                    panic!("{TEST} Test failed: key not found");
                 }
             }
         }
 
+        println!("{TEST} All key-value round-trips successful");
     }
+
 }

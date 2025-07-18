@@ -51,4 +51,16 @@ impl InnerNode {
         self.keys.insert(pos, key);
         self.children.insert(pos + 1, child_page_id);
     }
+
+
+
+    // Creates a mock inner node with a single fence key and child page ID.
+    /// Used for testing traversal logic in BfTree.
+    pub fn mock_single_child(child_page_id: u64) -> Self {
+        Self {
+            keys: vec![], // No keys, since everything routes to the one child
+            children: vec![child_page_id],
+        }
+    }
+
 }
