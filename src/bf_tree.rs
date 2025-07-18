@@ -209,7 +209,6 @@ impl BfTree {
             self.inner_nodes.get(&page_id)
         }
     }
-
 }
 
 #[cfg(test)]

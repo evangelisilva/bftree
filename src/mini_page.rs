@@ -70,77 +70,74 @@ impl MiniPage {
         };
     }
 
-    // pub fn merge(&mut self) {
-    //     let leaf_offset = self.page.node_meta.leaf;
-    //     let mut leaf_page = LeafPage::load_from_disk(leaf_offset);
-
-    //     let mut dirty_records = Vec::new();
-    //     let mut hot_records = Vec::new();
-
-    //     for kv in &self.page.kv_metas {
-    //         let key_start = kv.offset as usize;
-    //         let key_end = key_start + kv.key_size as usize;
-    //         let val_end = key_end + kv.value_size as usize;
-
-    //         let key = &self.page.data[key_start..key_end];
-    //         let value = &self.page.data[key_end..val_end];
-
-    //         if kv.ref_flag != 0 {
-    //             // Hot record → retain in mini-page (copy into new buffer if needed later)
-    //             hot_records.push((key.to_vec(), value.to_vec(), kv.clone()));
-    //         } else if kv.type_flag == 0 {
-    //             // Dirty insert → merge into leaf
-    //             dirty_records.push((key.to_vec(), value.to_vec()));
-    //         } else {
-    //             // Cold phantom/read cache → drop without writing to disk
-    //         }
-    //     }
-
-    //     let needs_split = dirty_records.iter().any(|(k, v)| !leaf_page.can_fit(k, v));
-
-    //     if needs_split {
-    //         // Split the leaf and insert accordingly
-    //         let (mut left, mut right, split_key) = leaf_page.split();
-
-    //         for (k, v) in dirty_records {
-    //             if k < split_key {
-    //                 let _ = left.insert(&k, &v);
-    //             } else {
-    //                 let _ = right.insert(&k, &v);
-    //             }
-    //         }
-
-    //         left.flush_to_disk();
-    //         right.flush_to_disk();
-    //     } else {
-    //         for (k, v) in dirty_records {
-    //             let _ = leaf_page.insert(&k, &v);
-    //         }
-    //         leaf_page.flush_to_disk();
-    //     }
-
-    //     // Replace mini-page content with only hot records (optional optimization)
-    //     self.page.kv_metas.clear();
-    //     self.page.data.clear();
-    //     self.page.node_meta.record_count = 0;
-
-    //     for (key, value, mut kv) in hot_records {
-    //         let offset = self.page.data.len() as u16;
-    //         self.page.data.extend_from_slice(&key);
-    //         self.page.data.extend_from_slice(&value);
-    //         kv.offset = offset;
-    //         kv.ref_flag = 0; // clear reference bit for future tracking
-    //         self.page.kv_metas.push(kv);
-    //         self.page.node_meta.record_count += 1;
-    //     }
-    // }
-
-    /// Merge mini-page into its corresponding leaf page.
-    /// This is triggered when the mini-page is too large or cold.
-    pub fn merge(&mut self) {
-        // Step 1: Locate corresponding leaf page;
+    /// Merge mini-page into its corresponding leaf page on disk.
+    ///
+    /// This happens when the mini-page becomes too large or cold.
+    /// The merge ensures dirty records are flushed, and only hot records are retained.
+    pub fn merge(&mut self) -> Option<(Vec<u8>, u64, u64)> {
+        // Step 1: Load leaf page
         let leaf_offset = self.page.node_meta.leaf;
-        let leaf_page = LeafPage::load_from_disk(leaf_offset);
+        let mut leaf_page = LeafPage::load_from_disk(leaf_offset);
+
+        // Step 2: Classify records
+        let mut hot_records = vec![];
+
+        for kv_meta in &self.page.kv_metas {
+            if kv_meta.ref_flag == 1 {
+                hot_records.push(kv_meta.clone());
+            } else {
+                match kv_meta.type_flag {
+                    0 | 2 => {
+                        let key = self.page.read_key(kv_meta);
+                        let value = self.page.read_value(kv_meta);
+
+                        if !leaf_page.can_fit(&key, &value) {
+                            // Step 2b: Split leaf if needed
+                            let (mut left, mut right, split_key) = leaf_page.split();
+
+                            if key < split_key {
+                                left.insert(&key, &value, None);
+                            } else {
+                                right.insert(&key, &value, None);
+                            }
+
+                            let left_offset = leaf_offset;
+                            let right_offset = get_next_offset();
+
+                            left.flush_to_disk(left_offset);
+                            right.flush_to_disk(right_offset);
+
+                            // Caller must update mapping table and inner node
+                            return Some((split_key, left_offset, right_offset));
+                        }
+
+                        leaf_page.insert(&key, &value, None);
+                    }
+                    _ => {} // cache/phantom → no merge needed
+                }
+            }
+        }
+
+        // Step 3: Flush updated leaf page
+        leaf_page.flush_to_disk(leaf_offset);
+
+        // Step 4: Rebuild mini-page with hot records only
+        self.page.kv_metas.clear();
+        self.page.data.clear();
+        self.page.node_meta.record_count = 0;
+
+        for kv in hot_records {
+            let key = self.page.read_key(&kv);
+            let value = self.page.read_value(&kv);
+            self.page.insert(&key, &value, kv.type_flag);
+        }
+
+        // Step 5: Reset ref_flag
+        for meta in &mut self.page.kv_metas {
+            meta.ref_flag = 0;
+        }
+
+        None // No split occurred
     }
 
 }

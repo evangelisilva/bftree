@@ -13,27 +13,6 @@ pub struct LeafPage {
 }
 
 impl LeafPage {
-    /// Loads a LeafPage from disk at given offset.
-    // pub fn load_from_disk(disk_offset: u64) -> Self {
-    //     // In real implementation:
-    //     // 1. Seek to disk_offset in file.
-    //     // 2. Read PAGE_SIZE bytes.
-    //     // 3. Parse NodeMeta, KVMeta array, and data block.
-    //     //
-    //     // Here is a placeholder with unimplemented:
-
-    //     let node_meta = NodeMeta::new(
-    //         LEAF_PAGE_SIZE as u16, // default leaf page size
-    //         PageType::LeafPage,
-    //         false,
-    //         0,
-    //         0, // leaf field not used for leaf pages
-    //     );
-
-    //     let page = Page::new(node_meta);
-
-    //     Self { page }
-    // }
 
     /// Loads a LeafPage from disk at given offset.
     pub fn load_from_disk(disk_offset: u64) -> Self {
@@ -71,49 +50,10 @@ impl LeafPage {
         Self { page }
     }
 
-
-    /// Loads a LeafPage from disk at the given offset.
-    // pub fn load_from_disk(disk_offset: u64) -> Self {
-    //     let mut file = File::open("storage.bftree").expect("Failed to open file");
-    //     file.seek(SeekFrom::Start(disk_offset)).expect("Failed to seek");
-
-    //     let mut buffer = vec![0u8; LEAF_PAGE_SIZE];
-    //     file.read_exact(&mut buffer).expect("Failed to read full page");
-
-    //     // 1. Deserialize NodeMeta (first 12 bytes)
-    //     let meta_bytes: [u8; 12] = buffer[0..12].try_into().unwrap();
-    //     let node_meta = NodeMeta::deserialize(&meta_bytes).unwrap();
-
-    //     // 2. Deserialize KVMetas
-    //     let mut kv_metas = Vec::new();
-    //     let mut offset = 12;
-    //     for _ in 0..node_meta.record_count {
-    //         let kv_bytes: [u8; 8] = buffer[offset..offset + 8].try_into().unwrap();
-    //         let kv = KVMeta::deserialize(&kv_bytes).unwrap();
-    //         kv_metas.push(kv);
-    //         offset += 8;
-    //     }
-
-    //     // 3. Remaining bytes are the data block
-    //     let data = buffer[offset..].to_vec();
-
-    //     let page = Page {
-    //         node_meta,
-    //         kv_metas,
-    //         data,
-    //     };
-
-    //     Self { page }
-    // }
-
     /// Binary search delegated to internal Page.
     pub fn binary_search(&mut self, key: &[u8]) -> Option<Vec<u8>> {
         self.page.binary_search(key)
     }
-
-    // pub fn insert(&mut self, key: &[u8], value: &[u8]) -> bool {
-    //     self.page.insert(key, value)
-    // }
 
     pub fn insert(&mut self, key: &[u8], value: &[u8], record_type: Option<RecordType>) -> bool {
         self.page.insert(key, value, record_type)
@@ -125,7 +65,7 @@ impl LeafPage {
             + self.page.data.len()
             + key.len()
             + value.len()
-            + 12; // NodeMeta size
+            + 12; 
 
         total_size <= LEAF_PAGE_SIZE
     }
@@ -133,7 +73,7 @@ impl LeafPage {
     pub fn flush_to_disk(&self, offset: u64) {
         let mut file = OpenOptions::new()
             .write(true)
-            .open("storage.bftree") // example file
+            .open("storage.bftree") 
             .expect("Failed to open file");
 
         file.seek(SeekFrom::Start(offset)).unwrap();
