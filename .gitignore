@@ -1,0 +1,37 @@
+.DS_Store
+*/.DS_Store
+
+# Rust/Cargo
+/target/
+**/*.rs.bk
+
+# Backup files
+*.log
+*.tmp
+*.swp
+*.swo
+*.bak
+*.old
+
+# IntelliJ Rust / CLion
+.idea/
+*.iml
+
+# VS Code
+.vscode/
+
+# MacOS
+.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Byebug
+.byebug_history
+
+# Other common editors
+*~                     # temporary files created by editors
+*.sublime-workspace
+*.sublime-project

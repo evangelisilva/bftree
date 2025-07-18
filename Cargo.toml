@@ -1,0 +1,18 @@
+[package]
+name = "bftree"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+byteorder = "1.4"
+
+[lib]
+name = "bftree"
+path = "src/lib.rs"
+
+[dev-dependencies]
+env_logger = "0.10"
+log = "0.4"
+ctor = "0.1"
+
+
