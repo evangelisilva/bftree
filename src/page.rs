@@ -203,11 +203,12 @@ impl Page {
 
             let key_start = mid_meta.offset as usize;
             let key_end = key_start + mid_meta.key_size as usize;
-
             let mid_key = &self.data[key_start..key_end];
 
             match mid_key.cmp(target_key) {
                 Ordering::Equal => {
+                    mid_meta.ref_flag = 1;
+                    
                     let value_start = key_end;
                     let value_end = value_start + mid_meta.value_size as usize;
                     return Some(self.data[value_start..value_end].to_vec());
