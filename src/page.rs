@@ -193,13 +193,13 @@ impl Page {
     }
 
     /// Performs binary search for target_key.
-    pub fn binary_search(&self, target_key: &[u8]) -> Option<Vec<u8>> {
+    pub fn binary_search(&mut self, target_key: &[u8]) -> Option<Vec<u8>> {
         let mut left = 0;
         let mut right = self.kv_metas.len();
 
         while left < right {
             let mid = (left + right) / 2;
-            let mid_meta = &self.kv_metas[mid];
+            let mid_meta = &mut self.kv_metas[mid];
 
             let key_start = mid_meta.offset as usize;
             let key_end = key_start + mid_meta.key_size as usize;
@@ -208,7 +208,7 @@ impl Page {
             match mid_key.cmp(target_key) {
                 Ordering::Equal => {
                     mid_meta.ref_flag = 1;
-                    
+
                     let value_start = key_end;
                     let value_end = value_start + mid_meta.value_size as usize;
                     return Some(self.data[value_start..value_end].to_vec());
@@ -224,7 +224,13 @@ impl Page {
     }
 
     /// Inserts key-value while keeping KVMeta sorted.
-    pub fn insert(&mut self, key: &[u8], value: &[u8], record_type: RecordType) -> bool {
+    pub fn insert(&mut self, key: &[u8], value: &[u8], record_type: Option<RecordType>) -> bool {
+
+        let record_type_u8: u8 = match record_type {
+            Some(r) => r.into(),
+            None => 0, // Default to Insert
+        };
+
         let kv_meta_size = 8;
         let total_size = self.kv_metas.len() * kv_meta_size + self.data.len() + key.len() + value.len() + 12; // NodeMeta size
 
@@ -237,7 +243,15 @@ impl Page {
         self.data.extend_from_slice(key);
         self.data.extend_from_slice(value);
 
-        let new_kv = KVMeta::new(key.len() as u16, value.len() as u16, offset, record_type, false, 0, 0);
+        let new_kv = KVMeta::new(
+            key.len() as u16, 
+            value.len() as u16, 
+            offset, 
+            record_type_u8,
+            false, 
+            0, 
+            0
+        );
 
         // Insert in sorted order
         let pos = self.kv_metas.binary_search_by(|kv| {

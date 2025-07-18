@@ -35,3 +35,5 @@ Desktop.ini
 *~                     # temporary files created by editors
 *.sublime-workspace
 *.sublime-project
+
+storage.bftree

@@ -45,7 +45,7 @@ impl BfTree {
             if rand::random::<f64>() < 0.01 {
                 if let Some(ref mini_page_rc) = mini_page_rc_opt {
                     let mut mini_page = mini_page_rc.borrow_mut();
-                    if mini_page.insert(key, &value, RecordType::Cache) {
+                    if mini_page.insert(key, &value, Some(RecordType::Cache)) {
                         // Successfully cached in mini-page
                         return Some(value);
                     }
@@ -58,7 +58,7 @@ impl BfTree {
                         self.mapping_table.clear_mini_page(page_id);
 
                         let mut new_mini = MiniPage::new(leaf_disk_offset);
-                        if new_mini.insert(key, &value, RecordType::Cache) {
+                        if new_mini.insert(key, &value, Some(RecordType::Cache)) {
                             self.mapping_table.update_mini_page(
                                 page_id,
                                 Rc::new(RefCell::new(new_mini)),
@@ -67,12 +67,12 @@ impl BfTree {
                     } else {
                         // Resize and reattempt insert
                         mini_page.resize(new_size as usize);
-                        mini_page.insert(key, &value, RecordType::Cache);
+                        mini_page.insert(key, &value, Some(RecordType::Cache));
                     }
                 } else {
                     // No existing mini-page → create one and insert
                     let mut new_mini = MiniPage::new(leaf_disk_offset);
-                    if new_mini.insert(key, &value, RecordType::Cache) {
+                    if new_mini.insert(key, &value, Some(RecordType::Cache)) {
                         self.mapping_table.update_mini_page(
                             page_id,
                             Rc::new(RefCell::new(new_mini)),
@@ -90,10 +90,10 @@ impl BfTree {
         if rand::random::<f64>() < 0.01 {
             if let Some(ref mini_page_rc) = mini_page_rc_opt {
                 let mut mini_page = mini_page_rc.borrow_mut();
-                mini_page.insert(key, &[], RecordType::Phantom);
+                mini_page.insert(key, &[], Some(RecordType::Phantom));
             } else {
                 let mut new_mini = MiniPage::new(leaf_disk_offset);
-                if new_mini.insert(key, &[], RecordType::Phantom) {
+                if new_mini.insert(key, &[], Some(RecordType::Phantom)) {
                     self.mapping_table.update_mini_page(
                         page_id,
                         Rc::new(RefCell::new(new_mini)),
@@ -121,7 +121,7 @@ impl BfTree {
             let mut mini_page = mini_page_rc.borrow_mut();
 
             // Try to insert into the existing mini-page
-            if mini_page.insert(key, value, RecordType::Insert) {
+            if mini_page.insert(key, value, Some(RecordType::Insert)) {
                 // Insert succeeded — done
                 return;
             }
@@ -138,7 +138,7 @@ impl BfTree {
 
                 // Create a new mini-page and insert into it
                 let mut new_mini = MiniPage::new(leaf_disk_offset);
-                if new_mini.insert(key, value, RecordType::Insert) {
+                if new_mini.insert(key, value, Some(RecordType::Insert)) {
                     self.mapping_table.update_mini_page(
                         page_id,
                         Rc::new(RefCell::new(new_mini)),
@@ -147,7 +147,7 @@ impl BfTree {
             } else {
                 // Resize the mini-page to a larger size and retry the insert
                 mini_page.resize(new_size as usize);
-                mini_page.insert(key, value, RecordType::Insert);
+                mini_page.insert(key, value, Some(RecordType::Insert));
             }
 
             return; // Done after handling existing mini-page
@@ -155,7 +155,7 @@ impl BfTree {
 
         // Step 4: No mini-page exists → create one and insert into it
         let mut new_mini = MiniPage::new(leaf_disk_offset);
-        if new_mini.insert(key, value, RecordType::Insert) {
+        if new_mini.insert(key, value, Some(RecordType::Insert)) {
             self.mapping_table.update_mini_page(
                 page_id,
                 Rc::new(RefCell::new(new_mini)),
